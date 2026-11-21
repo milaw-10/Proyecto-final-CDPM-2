@@ -55,6 +55,7 @@ uint8_t send_data[9] = {0x00, 0x01, 0x05, 0x02, 0x05, 0x06, 0x07, 0x08, 0x09};
 uint8_t received_data[16];  // Buffer m�s grande para recibir comandos del maestro
 uint8_t packet_size;
 uint8_t packet_count = 0;
+uint8_t peticion_flag;
 volatile uint8_t data_received_flag = 0;  // Flag para indicar que se recibieron datos
 uint32_t last_receive_time = 0;  // Timestamp de la �ltima recepci�n
 uint8_t is_valid_packet(uint8_t* data, uint8_t length);
@@ -163,6 +164,28 @@ myLoRa = newLoRa();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		if (peticion_flag)
+		{
+			peticion_flag=0;
+			last_receive_time = HAL_GetTick();
+    
+    sprintf(buf_tx, "Button interrupt - Data received\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
+		
+		// enviar peticion
+		 uint8_t peticion[1];
+		peticion[0]=1;
+    
+    sprintf(buf_tx, "Enviando peticion...\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
+    
+    LoRa_transmit(&myLoRa, peticion, 1, 2000);
+    LoRa_startReceiving(&myLoRa);
+    
+    sprintf(buf_tx, "Petición enviada correctamente \r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
+  }
+		
 		// Verificar si se recibieron datos por interrupci�n
     if(data_received_flag)
     {
@@ -231,9 +254,10 @@ myLoRa = newLoRa();
         //sprintf(buf_tx, "Interrupcion pero sin datos validos\r\n");
         //HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
       }
-    }
+    
 		HAL_Delay(100);
-  
+		}
+	}
   /* USER CODE END 3 */
 }
 
@@ -280,8 +304,8 @@ void SystemClock_Config(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   
-  sprintf(buf_tx, "DIO0 interrupt - Data received\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
+  //sprintf(buf_tx, "DIO0 interrupt - Data received\r\n");
+   // HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
   if(GPIO_Pin == DIO0_Pin)
   {
     // Marcar que se recibieron datos
@@ -290,6 +314,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     
     sprintf(buf_tx, "DIO0 interrupt - Data received\r\n");
     HAL_UART_Transmit(&huart1, (uint8_t*)buf_tx, strlen(buf_tx), HAL_MAX_DELAY);
+  }
+	//interrupcion por button
+	 if(GPIO_Pin == Button_Pin)
+  {
+    // Marcar que se recibieron datos
+    peticion_flag = 1;
+    
   }
 }
 // Funci�n para calcular checksum simple
